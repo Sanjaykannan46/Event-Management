@@ -1,0 +1,489 @@
+meta {
+  name: Global Admin Authentication Tests
+  type: http
+  seq: 1
+}
+
+vars {
+  baseUrl: http://localhost:4000
+  globalAdminUsername: globaladmin
+  globalAdminPassword: SecurePass123!
+  testUsername: testadmin
+  testPassword: TestPass123!
+  duplicateUsername: globaladmin
+  weakPassword: 123
+  invalidUsername: 
+}
+
+// Test 1: Global Admin Signup
+post {
+  url: {{baseUrl}}/auth/global/signup
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  "username": "{{globalAdminUsername}}",
+  "password": "{{globalAdminPassword}}"
+}
+
+tests {
+  test("Global admin signup should succeed", function() {
+    expect(res.getStatus()).to.equal(201);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody().message).to.equal('Global admin created successfully');
+  });
+}
+
+---
+
+// Test 2: Second Global Admin Signup (Different Username)
+post {
+  url: {{baseUrl}}/auth/global/signup
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  "username": "{{testUsername}}",
+  "password": "{{testPassword}}"
+}
+
+tests {
+  test("Second global admin signup should succeed", function() {
+    expect(res.getStatus()).to.equal(201);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody().message).to.equal('Global admin created successfully');
+  });
+}
+
+---
+
+// Test 3: Duplicate Username Signup (Should Fail)
+post {
+  url: {{baseUrl}}/auth/global/signup
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  "username": "{{duplicateUsername}}",
+  "password": "DifferentPass123!"
+}
+
+tests {
+  test("Duplicate username signup should fail", function() {
+    expect(res.getStatus()).to.equal(409);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody().message).to.equal('Global admin with this username already exists');
+  });
+}
+
+---
+
+// Test 4: Missing Username (Should Fail)
+post {
+  url: {{baseUrl}}/auth/global/signup
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  "password": "ValidPass123!"
+}
+
+tests {
+  test("Missing username should fail", function() {
+    expect(res.getStatus()).to.equal(400);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody().message).to.equal('Username and password are required');
+  });
+}
+
+---
+
+// Test 5: Missing Password (Should Fail)
+post {
+  url: {{baseUrl}}/auth/global/signup
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  "username": "newadmin"
+}
+
+tests {
+  test("Missing password should fail", function() {
+    expect(res.getStatus()).to.equal(400);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody().message).to.equal('Username and password are required');
+  });
+}
+
+---
+
+// Test 6: Empty Request Body (Should Fail)
+post {
+  url: {{baseUrl}}/auth/global/signup
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+}
+
+tests {
+  test("Empty request body should fail", function() {
+    expect(res.getStatus()).to.equal(400);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody().message).to.equal('Username and password are required');
+  });
+}
+
+---
+
+// Test 7: Global Admin Login
+post {
+  url: {{baseUrl}}/auth/global/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  "username": "{{globalAdminUsername}}",
+  "password": "{{globalAdminPassword}}"
+}
+
+tests {
+  test("Global admin login should succeed", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody().message).to.equal('Global admin logged in successfully');
+    
+    // Check if cookies are set (they should be in response headers)
+    const cookies = res.getHeaders()['set-cookie'];
+    if (cookies) {
+      expect(cookies.some(cookie => cookie.includes('globaladminaccesstoken'))).to.be.true;
+      expect(cookies.some(cookie => cookie.includes('globaladminrefreshtoken'))).to.be.true;
+    }
+  });
+}
+
+---
+
+// Test 8: Second Admin Login
+post {
+  url: {{baseUrl}}/auth/global/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  "username": "{{testUsername}}",
+  "password": "{{testPassword}}"
+}
+
+tests {
+  test("Second admin login should succeed", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody().message).to.equal('Global admin logged in successfully');
+  });
+}
+
+---
+
+// Test 9: Invalid Username Login (Should Fail)
+post {
+  url: {{baseUrl}}/auth/global/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  "username": "nonexistentadmin",
+  "password": "{{globalAdminPassword}}"
+}
+
+tests {
+  test("Invalid username login should fail", function() {
+    expect(res.getStatus()).to.equal(404);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody().message).to.equal('Global admin not found');
+  });
+}
+
+---
+
+// Test 10: Invalid Password Login (Should Fail)
+post {
+  url: {{baseUrl}}/auth/global/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  "username": "{{globalAdminUsername}}",
+  "password": "wrongpassword"
+}
+
+tests {
+  test("Invalid password login should fail", function() {
+    expect(res.getStatus()).to.equal(401);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody().message).to.equal('Invalid password');
+  });
+}
+
+---
+
+// Test 11: Missing Username in Login (Should Fail)
+post {
+  url: {{baseUrl}}/auth/global/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  "password": "{{globalAdminPassword}}"
+}
+
+tests {
+  test("Missing username in login should fail", function() {
+    expect(res.getStatus()).to.equal(400);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody().message).to.equal('Username and password are required');
+  });
+}
+
+---
+
+// Test 12: Missing Password in Login (Should Fail)
+post {
+  url: {{baseUrl}}/auth/global/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  "username": "{{globalAdminUsername}}"
+}
+
+tests {
+  test("Missing password in login should fail", function() {
+    expect(res.getStatus()).to.equal(400);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody().message).to.equal('Username and password are required');
+  });
+}
+
+---
+
+// Test 13: Check Authentication Status (After Login)
+get {
+  url: {{baseUrl}}/auth/global/status
+  auth: none
+}
+
+tests {
+  test("Authentication status should succeed after login", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody().message).to.equal('Admin is authenticated');
+  });
+}
+
+---
+
+// Test 14: Get New Access Token
+get {
+  url: {{baseUrl}}/auth/global/getnewaccesstoken
+  auth: none
+}
+
+tests {
+  test("Get new access token should succeed", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody().message).to.equal('New access token generated');
+    
+    // Check if new cookies are set
+    const cookies = res.getHeaders()['set-cookie'];
+    if (cookies) {
+      expect(cookies.some(cookie => cookie.includes('globaladminaccesstoken'))).to.be.true;
+      expect(cookies.some(cookie => cookie.includes('globaladminrefreshtoken'))).to.be.true;
+    }
+  });
+}
+
+---
+
+// Test 15: Global Admin Logout
+post {
+  url: {{baseUrl}}/auth/global/logout
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+tests {
+  test("Global admin logout should succeed", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody().message).to.equal('Global admin logged out successfully');
+    
+    // Check if cookies are cleared
+    const cookies = res.getHeaders()['set-cookie'];
+    if (cookies) {
+      expect(cookies.some(cookie => cookie.includes('globaladminaccesstoken') && cookie.includes('Max-Age=0'))).to.be.true;
+      expect(cookies.some(cookie => cookie.includes('globaladminrefreshtoken') && cookie.includes('Max-Age=0'))).to.be.true;
+    }
+  });
+}
+
+---
+
+// Test 16: Check Status After Logout (Should Fail)
+get {
+  url: {{baseUrl}}/auth/global/status
+  auth: none
+}
+
+tests {
+  test("Authentication status should fail after logout", function() {
+    expect(res.getStatus()).to.equal(401);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody().message).to.equal('Invalid token');
+  });
+}
+
+---
+
+// Test 17: Get New Access Token After Logout (Should Fail)
+get {
+  url: {{baseUrl}}/auth/global/getnewaccesstoken
+  auth: none
+}
+
+tests {
+  test("Get new access token should fail after logout", function() {
+    expect(res.getStatus()).to.equal(401);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody().message).to.equal('No refresh token provided');
+  });
+}
+
+---
+
+// Test 18: Re-login After Logout
+post {
+  url: {{baseUrl}}/auth/global/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  "username": "{{globalAdminUsername}}",
+  "password": "{{globalAdminPassword}}"
+}
+
+tests {
+  test("Re-login after logout should succeed", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody().message).to.equal('Global admin logged in successfully');
+  });
+}
+
+---
+
+// Test 19: Verify Status After Re-login
+get {
+  url: {{baseUrl}}/auth/global/status
+  auth: none
+}
+
+tests {
+  test("Status check after re-login should succeed", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody().message).to.equal('Admin is authenticated');
+  });
+}
+
+---
+
+// Test 20: Final Logout
+post {
+  url: {{baseUrl}}/auth/global/logout
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+tests {
+  test("Final logout should succeed", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody().message).to.equal('Global admin logged out successfully');
+  });
+}

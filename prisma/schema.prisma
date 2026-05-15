@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model clubadvisors {
+  id                Int             @id @default(autoincrement())
+  facultyadvisor_id Int
+  club_id           Int
+  clubs             clubs           @relation(fields: [club_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_clubadvisors_club")
+  facultyadvisors   facultyadvisors @relation(fields: [facultyadvisor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_clubadvisors_facultyadvisor")
+}
+
+model clubmembers {
+  id       Int      @id @default(autoincrement())
+  user_id  Int
+  club_id  Int
+  role     String?
+  is_admin Boolean?
+  clubs    clubs    @relation(fields: [club_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_clubmembers_club")
+  users    users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_clubmembers_user")
+}
+
+model clubs {
+  id              Int               @id @default(autoincrement())
+  name            String?
+  about           String?
+  clubadvisors    clubadvisors[]
+  clubmembers     clubmembers[]
+  eventconvenors  eventconvenors[]
+  organizingclubs organizingclubs[]
+}
+
+model emailverification {
+  rollno     String    @id @db.VarChar(50)
+  code       String?
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model eventconvenors {
+  id       Int    @id @default(autoincrement())
+  event_id Int
+  user_id  Int
+  club_id  Int
+  clubs    clubs  @relation(fields: [club_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_eventconvenors_club")
+  events   events @relation(fields: [event_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_eventconvenors_event")
+  users    users  @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_eventconvenors_user")
+}
+
+model eventregistration {
+  id       Int    @id @default(autoincrement())
+  event_id Int
+  team_id  Int
+  events   events @relation(fields: [event_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_eventregistration_event")
+  teams    teams  @relation(fields: [team_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_eventregistration_team")
+}
+
+model events {
+  id                Int                 @id @default(autoincrement())
+  name              String
+  about             String
+  date              DateTime            @db.Date
+  event_type        String
+  venue             String
+  event_category    String
+  min_no_member     Int
+  max_no_member     Int
+  chief_guest       String?
+  exp_expense       Decimal?            @db.Decimal(12, 2)
+  tot_amt_allot_su  Decimal?            @db.Decimal(12, 2)
+  tot_amt_spt_dor   Decimal?            @db.Decimal(12, 2)
+  exp_no_aud        Int?
+  faculty_obs_desig String?
+  faculty_obs_dept  String?
+  poster            String?
+  eventconvenors    eventconvenors[]
+  eventregistration eventregistration[]
+  eventwinners      eventwinners[]
+  feedback          feedback[]
+  invitation        invitation[]
+  organizingclubs   organizingclubs[]
+  teammembers       teammembers[]
+  teams             teams[]
+}
+
+model eventwinners {
+  id       Int    @id @default(autoincrement())
+  team_id  Int
+  event_id Int
+  position Int?
+  events   events @relation(fields: [event_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_eventwinners_event")
+  teams    teams  @relation(fields: [team_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_eventwinners_team")
+}
+
+model facultyadvisors {
+  id           Int            @id @default(autoincrement())
+  name         String?
+  department   String?
+  designation  String?
+  clubadvisors clubadvisors[]
+}
+
+model feedback {
+  id         Int       @id @default(autoincrement())
+  user_id    Int
+  event_id   Int
+  feedback   String?
+  rating     Int?
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  events     events    @relation(fields: [event_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_feedback_event")
+  users      users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_feedback_user")
+}
+
+model globaladmins {
+  id         Int       @id @default(autoincrement())
+  username   String    @unique @db.VarChar(255)
+  password   String
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model invitation {
+  id                                   Int    @id @default(autoincrement())
+  from_user_id                         Int
+  from_team_id                         Int
+  to_user_id                           Int
+  event_id                             Int
+  events                               events @relation(fields: [event_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_invitation_event")
+  teams                                teams  @relation(fields: [from_team_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_invitation_from_team")
+  users_invitation_from_user_idTousers users  @relation("invitation_from_user_idTousers", fields: [from_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_invitation_from_user")
+  users_invitation_to_user_idTousers   users  @relation("invitation_to_user_idTousers", fields: [to_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_invitation_to_user")
+
+  @@index([event_id], map: "idx_invitation_event_id")
+}
+
+model organizingclubs {
+  id       Int    @id @default(autoincrement())
+  event_id Int
+  club_id  Int
+  clubs    clubs  @relation(fields: [club_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_organizingclubs_club")
+  events   events @relation(fields: [event_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_organizingclubs_event")
+}
+
+model teammembers {
+  id         Int     @id @default(autoincrement())
+  user_id    Int
+  team_id    Int
+  event_id   Int
+  is_present Boolean
+  events     events  @relation(fields: [event_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_teammembers_event")
+  teams      teams   @relation(fields: [team_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_teammembers_team")
+  users      users   @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_teammembers_user")
+
+  @@index([team_id], map: "idx_teammembers_team_id")
+  @@index([user_id], map: "idx_teammembers_user_id")
+}
+
+model teams {
+  id                Int                 @id @default(autoincrement())
+  name              String?
+  event_id          Int
+  eventregistration eventregistration[]
+  eventwinners      eventwinners[]
+  invitation        invitation[]
+  teammembers       teammembers[]
+  events            events              @relation(fields: [event_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_teams_event")
+
+  @@index([event_id], map: "idx_teams_event_id")
+}
+
+model users {
+  id                                        Int               @id @default(autoincrement())
+  name                                      String?
+  rollno                                    String?           @unique @db.VarChar(50)
+  password                                  String?
+  department                                String?
+  email                                     String?           @unique @db.VarChar(100)
+  phoneno                                   BigInt?           @unique
+  yearofstudy                               Int?
+  created_at                                DateTime?         @default(now()) @db.Timestamp(6)
+  clubmembers                               clubmembers[]
+  eventconvenors                            eventconvenors[]
+  feedback                                  feedback[]
+  invitation_invitation_from_user_idTousers invitation[]      @relation("invitation_from_user_idTousers")
+  invitation_invitation_to_user_idTousers   invitation[]      @relation("invitation_to_user_idTousers")
+  teammembers                               teammembers[]
+  usersecuritycode                          usersecuritycode?
+}
+
+model usersecuritycode {
+  id         Int       @id @default(autoincrement())
+  user_id    Int       @unique
+  code       String?
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  users      users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_usersecuritycode_user")
+}

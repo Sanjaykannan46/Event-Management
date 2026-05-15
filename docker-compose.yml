@@ -1,0 +1,67 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: DaddyEMS
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d  # Mount SQL scripts for initialization
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    command: -config.file=/etc/tempo.yaml
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml
+      - ./tempo-data:/var/tempo
+    ports:
+      - "3200:80"        # Tempo UI
+      - "14268:14268"    # Jaeger ingest (thrift)
+      - "9095:9095"      # gRPC (used in some Tempo setups)
+      - "4417:4317"      # OTLP gRPC
+      - "4418:4318"      # OTLP HTTP
+      - "9411:9411"      # Zipkin ingest
+    user: "${UID}:${UID}"
+
+  loki:
+    image: grafana/loki:2.9.10
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki.yaml:/etc/loki/local-config.yaml
+      - ./loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    user: "${UID}:${UID}"
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000" # Grafana UI
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana-data:/var/lib/grafana
+    user: "${UID}:${UID}"
+    depends_on:
+      - loki
+
+  backend:
+    build: .
+    restart: always
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/DaddyEMS
+    ports:
+      - "4000:4000"
+    command: npm run start
+
+volumes:
+  pgdata:
+  grafana-data:
+  loki-data:
